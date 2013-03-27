@@ -337,6 +337,7 @@ void CreateObjectTool::startNewMapObject(const QPointF &pos,
     objectGroup->addObject(newMapObject);
 
     mNewMapObjectItem = new MapObjectItem(newMapObject, mapDocument());
+    mNewMapObjectItem->setZValue(10000);
     mapScene()->addItem(mNewMapObjectItem);
 }
 
