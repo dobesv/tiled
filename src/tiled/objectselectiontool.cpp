@@ -30,6 +30,7 @@
 #include "movemapobject.h"
 #include "objectgroup.h"
 #include "preferences.h"
+#include "raiselowerhelper.h"
 #include "rotatemapobject.h"
 #include "selectionrectangle.h"
 
@@ -246,6 +247,11 @@ void ObjectSelectionTool::keyPressed(QKeyEvent *event)
     case Qt::Key_Down:  moveBy = QPointF(0, 1); break;
     case Qt::Key_Left:  moveBy = QPointF(-1, 0); break;
     case Qt::Key_Right: moveBy = QPointF(1, 0); break;
+
+    case Qt::Key_PageUp:    RaiseLowerHelper(mapScene()).raise(); return;
+    case Qt::Key_PageDown:  RaiseLowerHelper(mapScene()).lower(); return;
+    case Qt::Key_Home:  RaiseLowerHelper(mapScene()).raiseToTop(); return;
+    case Qt::Key_End:   RaiseLowerHelper(mapScene()).lowerToBottom(); return;
     }
 
     const QSet<MapObjectItem*> &items = mapScene()->selectedObjectItems();
