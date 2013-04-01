@@ -53,7 +53,6 @@ Tiled::Map *JsonPlugin::read(const QString &fileName)
             contents.remove(0, i);
             if (contents.endsWith(';')) contents.chop(1);
             if (contents.endsWith(')')) contents.chop(1);
-            break;
         }
     }
     reader.parse(contents);
