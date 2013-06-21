@@ -1,5 +1,6 @@
 include(../../tiled.pri)
 include(../libtiled/libtiled.pri)
+include(../qtpropertybrowser/src/qtpropertybrowser.pri)
 
 TEMPLATE = app
 TARGET = tiled
@@ -51,9 +52,10 @@ SOURCES += aboutdialog.cpp \
     automappingutils.cpp  \
     brushitem.cpp \
     bucketfilltool.cpp \
+    changeimagelayerproperties.cpp \
+    changelayer.cpp \
     changemapobject.cpp \
     changemapproperties.cpp \
-    changeimagelayerproperties.cpp \
     changeobjectgroupproperties.cpp \
     changepolygon.cpp \
     changeproperties.cpp \
@@ -72,12 +74,12 @@ SOURCES += aboutdialog.cpp \
     editterraindialog.cpp \
     eraser.cpp \
     erasetiles.cpp \
+    fileedit.cpp \
     filesystemwatcher.cpp \
     filltiles.cpp \
     flipmapobjects.cpp \
     geometry.cpp \
     imagelayeritem.cpp \
-    imagelayerpropertiesdialog.cpp \
     languagemanager.cpp \
     layerdock.cpp \
     layermodel.cpp \
@@ -87,7 +89,6 @@ SOURCES += aboutdialog.cpp \
     mapdocument.cpp \
     mapobjectitem.cpp \
     mapobjectmodel.cpp \
-    mappropertiesdialog.cpp \
     mapscene.cpp \
     mapsdock.cpp \
     mapview.cpp \
@@ -100,8 +101,6 @@ SOURCES += aboutdialog.cpp \
     newmapdialog.cpp \
     newtilesetdialog.cpp \
     objectgroupitem.cpp \
-    objectgrouppropertiesdialog.cpp \
-    objectpropertiesdialog.cpp \
     objectsdock.cpp \
     objectselectiontool.cpp \
     objecttypes.cpp \
@@ -112,11 +111,12 @@ SOURCES += aboutdialog.cpp \
     pluginmanager.cpp \
     preferences.cpp \
     preferencesdialog.cpp \
-    propertiesdialog.cpp \
-    propertiesmodel.cpp \
-    propertiesview.cpp \
+    propertiesdock.cpp \
+    propertybrowser.cpp \
     quickstampmanager.cpp \
     renamelayer.cpp \
+    renameterrain.cpp \
+    renametileset.cpp \
     resizedialog.cpp \
     resizehelper.cpp \
     resizelayer.cpp \
@@ -144,7 +144,10 @@ SOURCES += aboutdialog.cpp \
     toolmanager.cpp \
     undodock.cpp \
     utils.cpp \
-    zoomable.cpp
+    varianteditorfactory.cpp \
+    variantpropertymanager.cpp \
+    zoomable.cpp \
+    consoledock.cpp
 
 HEADERS += aboutdialog.h \
     abstractobjecttool.h \
@@ -160,9 +163,10 @@ HEADERS += aboutdialog.h \
     automappingutils.h \
     brushitem.h \
     bucketfilltool.h \
+    changeimagelayerproperties.h\
+    changelayer.h \
     changemapobject.h \
     changemapproperties.h \
-    changeimagelayerproperties.h\
     changeobjectgroupproperties.h \
     changepolygon.h \
     changeproperties.h \
@@ -181,12 +185,12 @@ HEADERS += aboutdialog.h \
     editterraindialog.h \
     eraser.h \
     erasetiles.h \
+    fileedit.h \
     filesystemwatcher.h \
     filltiles.h \
     flipmapobjects.h \
     geometry.h \
     imagelayeritem.h \
-    imagelayerpropertiesdialog.h \
     languagemanager.h \
     layerdock.h \
     layermodel.h \
@@ -196,7 +200,6 @@ HEADERS += aboutdialog.h \
     mapdocument.h \
     mapobjectitem.h \
     mapobjectmodel.h \
-    mappropertiesdialog.h \
     mapscene.h \
     mapsdock.h \
     mapview.h \
@@ -209,8 +212,6 @@ HEADERS += aboutdialog.h \
     newmapdialog.h \
     newtilesetdialog.h \
     objectgroupitem.h \
-    objectgrouppropertiesdialog.h \
-    objectpropertiesdialog.h \
     objectsdock.h \
     objectselectiontool.h \
     objecttypes.h \
@@ -221,12 +222,13 @@ HEADERS += aboutdialog.h \
     pluginmanager.h \
     preferencesdialog.h \
     preferences.h \
-    propertiesdialog.h \
-    propertiesmodel.h \
-    propertiesview.h \
+    propertiesdock.h \
+    propertybrowser.h \
     quickstampmanager.h \
     rangeset.h \
     renamelayer.h \
+    renameterrain.h \
+    renametileset.h \
     resizedialog.h \
     resizehelper.h \
     resizelayer.h \
@@ -255,7 +257,10 @@ HEADERS += aboutdialog.h \
     undocommands.h \
     undodock.h \
     utils.h \
-    zoomable.h
+    varianteditorfactory.h \
+    variantpropertymanager.h \
+    zoomable.h \
+    consoledock.h
 
 macx {
     OBJECTIVE_SOURCES += macsupport.mm
@@ -266,10 +271,8 @@ FORMS += aboutdialog.ui \
     mainwindow.ui \
     newmapdialog.ui \
     newtilesetdialog.ui \
-    objectpropertiesdialog.ui \
     offsetmapdialog.ui \
     preferencesdialog.ui \
-    propertiesdialog.ui \
     resizedialog.ui \
     saveasimagedialog.ui\
     editterraindialog.ui
@@ -285,6 +288,22 @@ INSTALLS += icon16
 iconscalable.path = $${PREFIX}/share/icons/hicolor/scalable/apps/
 iconscalable.files += images/scalable/tiled.svg
 INSTALLS += iconscalable
+
+mimeicon16.path = $${PREFIX}/share/icons/hicolor/16x16/mimetypes/
+mimeicon16.files += images/16x16/application-x-tiled.png
+INSTALLS += mimeicon16
+
+mimeicon32.path = $${PREFIX}/share/icons/hicolor/32x32/mimetypes/
+mimeicon32.files += images/32x32/application-x-tiled.png
+INSTALLS += mimeicon32
+
+mimeiconscalable.path = $${PREFIX}/share/icons/hicolor/scalable/mimetypes/
+mimeiconscalable.files += images/scalable/application-x-tiled.svg
+INSTALLS += mimeiconscalable
+
+mimeinfofile.path = $${PREFIX}/share/mime/packages/
+mimeinfofile.files += ../../docs/mime/tiled.xml
+INSTALLS += mimeinfofile
 
 desktopfile.path = $${PREFIX}/share/applications/
 desktopfile.files += ../../docs/tiled.desktop

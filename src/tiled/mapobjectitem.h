@@ -80,12 +80,6 @@ public:
                QWidget *widget = 0);
 
     /**
-     * Returns the center of the object as the distance in pixels from its
-     * position.
-     */
-    QPointF objectCenter() const;
-
-    /**
      * Resizes the associated map object. The \a size is given in tiles.
      */
     void resizeObject(const QSizeF &size);
@@ -107,9 +101,6 @@ public:
      * gray.
      */
     static QColor objectColor(const MapObject *object);
-
-protected:
-    void mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event);
 
 private:
     MapDocument *mapDocument() const { return mMapDocument; }

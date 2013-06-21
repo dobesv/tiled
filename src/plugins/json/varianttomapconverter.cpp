@@ -59,11 +59,8 @@ Map *VariantToMapConverter::toMap(const QVariant &variant,
     mMap->setProperties(toProperties(variantMap["properties"]));
 
     const QString bgColor = variantMap["backgroundcolor"].toString();
-    if (!bgColor.isEmpty())
-#if QT_VERSION >= 0x040700
-        if (QColor::isValidColor(bgColor))
-#endif
-            mMap->setBackgroundColor(QColor(bgColor));
+    if (!bgColor.isEmpty() && QColor::isValidColor(bgColor))
+        mMap->setBackgroundColor(QColor(bgColor));
 
     foreach (const QVariant &tilesetVariant, variantMap["tilesets"].toList()) {
         Tileset *tileset = toTileset(tilesetVariant);
@@ -123,16 +120,13 @@ Tileset *VariantToMapConverter::toTileset(const QVariant &variant)
     tileset->setTileOffset(QPoint(tileOffsetX, tileOffsetY));
 
     const QString trans = variantMap["transparentcolor"].toString();
-    if (!trans.isEmpty())
-#if QT_VERSION >= 0x040700
-        if (QColor::isValidColor(trans))
-#endif
-            tileset->setTransparentColor(QColor(trans));
+    if (!trans.isEmpty() && QColor::isValidColor(trans))
+        tileset->setTransparentColor(QColor(trans));
 
     QString imageSource = variantMap["image"].toString();
 
     if (QDir::isRelativePath(imageSource))
-        imageSource = mMapDir.path() + QLatin1Char('/') + imageSource;
+        imageSource = QDir::cleanPath(mMapDir.absoluteFilePath(imageSource));
 
     if (!tileset->loadFromImage(QImage(imageSource), imageSource)) {
         mError = tr("Error loading tileset image:\n'%1'").arg(imageSource);
@@ -366,14 +360,15 @@ ImageLayer *VariantToMapConverter::toImageLayer(const QVariantMap &variantMap)
     imageLayer->setVisible(visible);
 
     const QString trans = variantMap["transparentcolor"].toString();
-    if (!trans.isEmpty())
-#if QT_VERSION >= 0x040700
-        if (QColor::isValidColor(trans))
-#endif
-            imageLayer->setTransparentColor(QColor(trans));
+    if (!trans.isEmpty() && QColor::isValidColor(trans))
+        imageLayer->setTransparentColor(QColor(trans));
 
-    const QString imageSource = variantMap["image"].toString();
+    QString imageSource = variantMap["image"].toString();
+
     if (!imageSource.isEmpty()) {
+        if (QDir::isRelativePath(imageSource))
+            imageSource = QDir::cleanPath(mMapDir.absoluteFilePath(imageSource));
+
         if (!imageLayer->loadFromImage(QImage(imageSource), imageSource)) {
             // TODO: This error is currently ignored
             mError = tr("Error loading image:\n'%1'").arg(imageSource);

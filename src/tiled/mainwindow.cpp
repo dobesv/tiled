@@ -47,20 +47,19 @@
 #include "mapdocument.h"
 #include "mapdocumentactionhandler.h"
 #include "mapobject.h"
-#include "mappropertiesdialog.h"
 #include "maprenderer.h"
 #include "mapsdock.h"
 #include "mapscene.h"
 #include "newmapdialog.h"
 #include "newtilesetdialog.h"
 #include "pluginmanager.h"
-#include "propertiesdialog.h"
 #include "resizedialog.h"
 #include "objectselectiontool.h"
 #include "objectgroup.h"
 #include "offsetmapdialog.h"
 #include "preferences.h"
 #include "preferencesdialog.h"
+#include "propertiesdock.h"
 #include "quickstampmanager.h"
 #include "saveasimagedialog.h"
 #include "stampbrush.h"
@@ -80,6 +79,7 @@
 #include "commandbutton.h"
 #include "objectsdock.h"
 #include "minimapdock.h"
+#include "consoledock.h"
 
 #ifdef Q_WS_MAC
 #include "macsupport.h"
@@ -117,6 +117,7 @@ MainWindow::MainWindow(QWidget *parent, Qt::WindowFlags flags)
     , mTilesetDock(new TilesetDock(this))
     , mTerrainDock(new TerrainDock(this))
     , mMiniMapDock(new MiniMapDock(this))
+    , mConsoleDock(new ConsoleDock(this))
     , mCurrentLayerLabel(new QLabel)
     , mZoomable(0)
     , mZoomComboBox(new QComboBox)
@@ -130,6 +131,7 @@ MainWindow::MainWindow(QWidget *parent, Qt::WindowFlags flags)
 #ifdef Q_WS_MAC
     MacSupport::addFullscreen(this);
 #endif
+
 
     Preferences *preferences = Preferences::instance();
 
@@ -166,6 +168,7 @@ MainWindow::MainWindow(QWidget *parent, Qt::WindowFlags flags)
     connect(undoGroup, SIGNAL(cleanChanged(bool)), SLOT(updateWindowTitle()));
 
     UndoDock *undoDock = new UndoDock(undoGroup, this);
+    PropertiesDock *propertiesDock = new PropertiesDock(this);
 
     addDockWidget(Qt::RightDockWidgetArea, mLayerDock);
     addDockWidget(Qt::LeftDockWidgetArea, undoDock);
@@ -174,6 +177,8 @@ MainWindow::MainWindow(QWidget *parent, Qt::WindowFlags flags)
     addDockWidget(Qt::RightDockWidgetArea, mMiniMapDock);
     addDockWidget(Qt::RightDockWidgetArea, mTerrainDock);
     addDockWidget(Qt::RightDockWidgetArea, mTilesetDock);
+    addDockWidget(Qt::RightDockWidgetArea, propertiesDock);
+    addDockWidget(Qt::RightDockWidgetArea, mConsoleDock);
 
     tabifyDockWidget(mMiniMapDock, mObjectsDock);
     tabifyDockWidget(mObjectsDock, mLayerDock);
@@ -184,6 +189,7 @@ MainWindow::MainWindow(QWidget *parent, Qt::WindowFlags flags)
     // they are hidden by default.
     undoDock->setVisible(false);
     mMapsDock->setVisible(false);
+    mConsoleDock->setVisible(false);
 
     statusBar()->addPermanentWidget(mZoomComboBox);
 
@@ -259,8 +265,6 @@ MainWindow::MainWindow(QWidget *parent, Qt::WindowFlags flags)
     mLayerMenu->addAction(mActionHandler->actionMoveLayerDown());
     mLayerMenu->addSeparator();
     mLayerMenu->addAction(mActionHandler->actionToggleOtherLayers());
-    mLayerMenu->addSeparator();
-    mLayerMenu->addAction(mActionHandler->actionLayerProperties());
 
     menuBar()->insertMenu(mUi->menuHelp->menuAction(), mLayerMenu);
 
@@ -305,9 +309,6 @@ MainWindow::MainWindow(QWidget *parent, Qt::WindowFlags flags)
     connect(mUi->actionMapProperties, SIGNAL(triggered()),
             SLOT(editMapProperties()));
     connect(mUi->actionAutoMap, SIGNAL(triggered()), SLOT(autoMap()));
-
-    connect(mActionHandler->actionLayerProperties(), SIGNAL(triggered()),
-            SLOT(editLayerProperties()));
 
     connect(mUi->actionAbout, SIGNAL(triggered()), SLOT(aboutTiled()));
     connect(mUi->actionAboutQt, SIGNAL(triggered()), qApp, SLOT(aboutQt()));
@@ -550,9 +551,9 @@ bool MainWindow::openFile(const QString &fileName,
 
     TmxMapReader tmxMapReader;
 
+    const PluginManager *pm = PluginManager::instance();
     if (!mapReader && !tmxMapReader.supportsFile(fileName)) {
         // Try to find a plugin that implements support for this format
-        const PluginManager *pm = PluginManager::instance();
         QList<MapReaderInterface*> readers =
                 pm->interfaces<MapReaderInterface>();
 
@@ -566,10 +567,9 @@ bool MainWindow::openFile(const QString &fileName,
 
     // check if we can save in that format as well
     QString writerPluginFileName;
-    PluginManager *pm = PluginManager::instance();
     if (mapReader) {
-        if (dynamic_cast<MapWriterInterface*>(mapReader)) {
-            if (const Plugin *plugin = pm->plugin(mapReader))
+        if (const Plugin *plugin = pm->plugin(mapReader)) {
+            if (qobject_cast<MapWriterInterface*>(plugin->instance))
                 writerPluginFileName = plugin->fileName;
         }
     } else {
@@ -783,10 +783,12 @@ bool MainWindow::saveFileAs()
     return saveFile(fileName);
 }
 
-bool MainWindow::confirmSave()
+bool MainWindow::confirmSave(MapDocument *mapDocument)
 {
-    if (!mMapDocument || !mMapDocument->isModified())
+    if (!mapDocument || !mapDocument->isModified())
         return true;
+
+    mDocumentManager->switchToDocument(mapDocument);
 
     int ret = QMessageBox::warning(
             this, tr("Unsaved Changes"),
@@ -804,9 +806,8 @@ bool MainWindow::confirmSave()
 
 bool MainWindow::confirmAllSave()
 {
-    for (int i = 0; i < mDocumentManager->documentCount(); i++) {
-        mDocumentManager->switchToDocument(i);
-        if (!confirmSave())
+    for (int i = 0; i < mDocumentManager->documentCount(); ++i) {
+        if (!confirmSave(mDocumentManager->documents().at(i)))
             return false;
     }
 
@@ -919,7 +920,7 @@ void MainWindow::exportAs()
 
 void MainWindow::closeFile()
 {
-    if (confirmSave())
+    if (confirmSave(mDocumentManager->currentDocument()))
         mDocumentManager->closeCurrentDocument();
 }
 
@@ -1027,9 +1028,8 @@ void MainWindow::paste()
 
             QUndoStack *undoStack = mMapDocument->undoStack();
             QList<MapObject*> pastedObjects;
-#if QT_VERSION >= 0x040700
             pastedObjects.reserve(objectGroup->objectCount());
-#endif
+
             undoStack->beginMacro(tr("Paste Objects"));
             foreach (const MapObject *mapObject, objectGroup->objects()) {
                 MapObject *objectClone = mapObject->clone();
@@ -1206,9 +1206,8 @@ void MainWindow::editMapProperties()
     if (!mMapDocument)
         return;
 
-    MapPropertiesDialog mapPropertiesDialog(mMapDocument, this);
-
-    mapPropertiesDialog.exec();
+    mMapDocument->setCurrentObject(mMapDocument->map());
+    mMapDocument->emitEditCurrentObject();
 }
 
 void MainWindow::autoMap()
@@ -1364,15 +1363,6 @@ void MainWindow::updateZoomLabel()
     }
 }
 
-void MainWindow::editLayerProperties()
-{
-    if (!mMapDocument)
-        return;
-
-    if (Layer *layer = mMapDocument->currentLayer())
-        PropertiesDialog::showDialogFor(layer, mMapDocument, this);
-}
-
 void MainWindow::flip(FlipDirection direction)
 {
     if (mStampBrush->isEnabled()) {
@@ -1454,10 +1444,10 @@ void MainWindow::writeSettings()
     QStringList scrollY;
     QStringList selectedLayer;
     for (int i = 0; i < mDocumentManager->documentCount(); i++) {
-        mDocumentManager->switchToDocument(i);
-        fileList.append(mDocumentManager->currentDocument()->fileName());
-        MapView *mapView = mDocumentManager->currentMapView();
-        const int currentLayerIndex = mMapDocument->currentLayerIndex();
+        MapDocument *document = mDocumentManager->documents().at(i);
+        MapView *mapView = mDocumentManager->viewForDocument(document);
+        fileList.append(document->fileName());
+        const int currentLayerIndex = document->currentLayerIndex();
 
         mapScales.append(QString::number(mapView->zoomable()->scale()));
         scrollX.append(QString::number(
@@ -1598,7 +1588,6 @@ void MainWindow::setupQuickStamps()
 
 void MainWindow::closeMapDocument(int index)
 {
-    mDocumentManager->switchToDocument(index);
-    if (confirmSave())
-        mDocumentManager->closeCurrentDocument();
+    if (confirmSave(mDocumentManager->documents().at(index)))
+        mDocumentManager->closeDocumentAt(index);
 }
